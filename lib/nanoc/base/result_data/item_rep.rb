@@ -24,8 +24,10 @@ module Nanoc::Int
       # @return [Hash<Symbol,Nanoc::Int::Content]
       attr_accessor :snapshot_contents
 
-      def initialize(item_rep)
+      def initialize(item_rep, initial_content, snapshot_defs)
         @item_rep = item_rep
+        @initial_content = initial_content
+        @snapshot_defs = snapshot_defs
 
         reset
       end
@@ -35,7 +37,7 @@ module Nanoc::Int
       end
 
       def reset
-        @snapshot_contents = { last: @item_rep.item.content }
+        @snapshot_contents = { last: @initial_content }
       end
 
       def compiled_content(params = {})
@@ -49,7 +51,7 @@ module Nanoc::Int
         is_moving = [:pre, :post, :last].include?(snapshot_name)
 
         # Check existance of snapshot
-        snapshot_def = @item_rep.snapshot_defs.find { |sd| sd.name == snapshot_name }
+        snapshot_def = @snapshot_defs.find { |sd| sd.name == snapshot_name }
         if !is_moving && (snapshot_def.nil? || !snapshot_def.final?)
           raise Nanoc::Int::Errors::NoSuchSnapshot.new(@item_rep, snapshot_name)
         end
@@ -83,7 +85,7 @@ module Nanoc::Int
       @raw_paths  = {}
       @paths      = {}
       @snapshot_defs = []
-      @contents = Contents.new(self)
+      @contents = Contents.new(self, item.content, @snapshot_defs)
       @compiled = false
     end
 
