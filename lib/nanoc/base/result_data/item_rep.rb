@@ -1,9 +1,6 @@
 module Nanoc::Int
   # @api private
   class ItemRep
-    # @return [Hash<Symbol,Nanoc::Int::Content]
-    attr_accessor :snapshot_contents
-
     # @return [Boolean]
     attr_accessor :compiled
     alias_method :compiled?, :compiled
@@ -23,6 +20,57 @@ module Nanoc::Int
     # @return [Enumerable<Nanoc::Int:SnapshotDef]
     attr_accessor :snapshot_defs
 
+    class Contents
+      # @return [Hash<Symbol,Nanoc::Int::Content]
+      attr_accessor :snapshot_contents
+
+      def initialize(item_rep)
+        @item_rep = item_rep
+
+        reset
+      end
+
+      def binary?
+        @snapshot_contents[:last].binary?
+      end
+
+      def reset
+        @snapshot_contents = { last: @item_rep.item.content }
+      end
+
+      def compiled_content(params = {})
+        # Make sure we're not binary
+        if binary?
+          raise Nanoc::Int::Errors::CannotGetCompiledContentOfBinaryItem.new(@item_rep)
+        end
+
+        # Get name of last pre-layout snapshot
+        snapshot_name = params.fetch(:snapshot) { @snapshot_contents[:pre] ? :pre : :last }
+        is_moving = [:pre, :post, :last].include?(snapshot_name)
+
+        # Check existance of snapshot
+        snapshot_def = @item_rep.snapshot_defs.find { |sd| sd.name == snapshot_name }
+        if !is_moving && (snapshot_def.nil? || !snapshot_def.final?)
+          raise Nanoc::Int::Errors::NoSuchSnapshot.new(@item_rep, snapshot_name)
+        end
+
+        # Verify snapshot is usable
+        is_still_moving =
+          case snapshot_name
+          when :post, :last
+            true
+          when :pre
+            snapshot_def.nil? || !snapshot_def.final?
+          end
+        is_usable_snapshot = @snapshot_contents[snapshot_name] && (@item_rep.compiled? || !is_still_moving)
+        unless is_usable_snapshot
+          raise Nanoc::Int::Errors::UnmetDependency.new(@item_rep)
+        end
+
+        @snapshot_contents[snapshot_name].string
+      end
+    end
+
     # @param [Nanoc::Int::Item] item
     #
     # @param [Symbol] name
@@ -35,67 +83,34 @@ module Nanoc::Int
       @raw_paths  = {}
       @paths      = {}
       @snapshot_defs = []
-      initialize_content
-
-      # Reset flags
+      @contents = Contents.new(self)
       @compiled = false
     end
 
+    def snapshot_contents
+      @contents.snapshot_contents
+    end
+
+    def snapshot_contents=(new_snapshot_contents)
+      @contents.snapshot_contents = new_snapshot_contents
+    end
+
     def binary?
-      @snapshot_contents[:last].binary?
+      @contents.binary?
     end
 
-    # Returns the compiled content from a given snapshot.
-    #
-    # @option params [String] :snapshot The name of the snapshot from which to
-    #   fetch the compiled content. By default, the returned compiled content
-    #   will be the content compiled right before the first layout call (if
-    #   any).
-    #
-    # @return [String] The compiled content at the given snapshot (or the
-    #   default snapshot if no snapshot is specified)
     def compiled_content(params = {})
-      # Make sure we're not binary
-      if binary?
-        raise Nanoc::Int::Errors::CannotGetCompiledContentOfBinaryItem.new(self)
-      end
-
-      # Get name of last pre-layout snapshot
-      snapshot_name = params.fetch(:snapshot) { @snapshot_contents[:pre] ? :pre : :last }
-      is_moving = [:pre, :post, :last].include?(snapshot_name)
-
-      # Check existance of snapshot
-      snapshot_def = snapshot_defs.find { |sd| sd.name == snapshot_name }
-      if !is_moving && (snapshot_def.nil? || !snapshot_def.final?)
-        raise Nanoc::Int::Errors::NoSuchSnapshot.new(self, snapshot_name)
-      end
-
-      # Verify snapshot is usable
-      is_still_moving =
-        case snapshot_name
-        when :post, :last
-          true
-        when :pre
-          snapshot_def.nil? || !snapshot_def.final?
-        end
-      is_usable_snapshot = @snapshot_contents[snapshot_name] && (self.compiled? || !is_still_moving)
-      unless is_usable_snapshot
-        raise Nanoc::Int::Errors::UnmetDependency.new(self)
-      end
-
-      @snapshot_contents[snapshot_name].string
+      @contents.compiled_content(params)
     end
 
-    # Checks whether content exists at a given snapshot.
-    #
-    # @return [Boolean] True if content exists for the snapshot with the
-    #   given name, false otherwise
-    #
-    # @since 3.2.0
     def snapshot?(snapshot_name)
-      !@snapshot_contents[snapshot_name].nil?
+      !@contents.snapshot_contents[snapshot_name].nil?
     end
     alias_method :has_snapshot?, :snapshot?
+
+    def forget_progress
+      @contents.reset
+    end
 
     # Returns the item rep’s raw path. It includes the path to the output
     # directory and the full filename.
@@ -123,16 +138,6 @@ module Nanoc::Int
       @paths[snapshot_name]
     end
 
-    # Resets the compilation progress for this item representation. This is
-    # necessary when an unmet dependency is detected during compilation.
-    #
-    # @api private
-    #
-    # @return [void]
-    def forget_progress
-      initialize_content
-    end
-
     # Returns an object that can be used for uniquely identifying objects.
     #
     # @api private
@@ -144,13 +149,6 @@ module Nanoc::Int
 
     def inspect
       "<#{self.class} name=\"#{name}\" binary=#{self.binary?} raw_path=\"#{raw_path}\" item.identifier=\"#{item.identifier}\">"
-    end
-
-    private
-
-    def initialize_content
-      # FIXME: Where is :raw?
-      @snapshot_contents = { last: @item.content }
     end
   end
 end
