@@ -1,10 +1,6 @@
 module Nanoc::Int
   # @api private
   class ItemRep
-    # @return [Boolean]
-    attr_accessor :compiled
-    alias_method :compiled?, :compiled
-
     # @return [Hash<Symbol,String>]
     attr_accessor :raw_paths
 
@@ -24,10 +20,15 @@ module Nanoc::Int
       # @return [Hash<Symbol,Nanoc::Int::Content]
       attr_accessor :snapshot_contents
 
+      # @return [Boolean]
+      attr_accessor :compiled
+      alias_method :compiled?, :compiled
+
       def initialize(item_rep, initial_content, snapshot_defs)
         @item_rep = item_rep
         @initial_content = initial_content
         @snapshot_defs = snapshot_defs
+        @compiled = false
 
         reset
       end
@@ -64,7 +65,7 @@ module Nanoc::Int
           when :pre
             snapshot_def.nil? || !snapshot_def.final?
           end
-        is_usable_snapshot = @snapshot_contents[snapshot_name] && (@item_rep.compiled? || !is_still_moving)
+        is_usable_snapshot = @snapshot_contents[snapshot_name] && (compiled? || !is_still_moving)
         unless is_usable_snapshot
           raise Nanoc::Int::Errors::UnmetDependency.new(@item_rep)
         end
@@ -86,7 +87,6 @@ module Nanoc::Int
       @paths      = {}
       @snapshot_defs = []
       @contents = Contents.new(self, item.content, @snapshot_defs)
-      @compiled = false
     end
 
     def snapshot_contents
@@ -95,6 +95,14 @@ module Nanoc::Int
 
     def snapshot_contents=(new_snapshot_contents)
       @contents.snapshot_contents = new_snapshot_contents
+    end
+
+    def compiled?
+      @contents.compiled?
+    end
+
+    def compiled=(new_compiled)
+      @contents.compiled = new_compiled
     end
 
     def binary?

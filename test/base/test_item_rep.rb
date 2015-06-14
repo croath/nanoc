@@ -8,7 +8,7 @@ class Nanoc::Int::ItemRepTest < Nanoc::TestCase
     rep.snapshot_contents = {
       last: Nanoc::Int::TextualContent.new('last content'),
     }
-    rep.expects(:compiled?).returns(true)
+    rep.compiled = true
 
     # Check
     assert_equal 'last content', rep.compiled_content
@@ -24,7 +24,7 @@ class Nanoc::Int::ItemRepTest < Nanoc::TestCase
       pre: Nanoc::Int::TextualContent.new('pre content'),
       last: Nanoc::Int::TextualContent.new('last content'),
     }
-    rep.expects(:compiled?).returns(true)
+    rep.compiled = true
 
     # Check
     assert_equal 'pre content', rep.compiled_content
@@ -40,7 +40,7 @@ class Nanoc::Int::ItemRepTest < Nanoc::TestCase
       pre: Nanoc::Int::TextualContent.new('pre content'),
       last: Nanoc::Int::TextualContent.new('last content'),
     }
-    rep.expects(:compiled?).returns(true)
+    rep.compiled = true
 
     # Check
     assert_equal 'last content', rep.compiled_content(snapshot: :last)
@@ -69,7 +69,7 @@ class Nanoc::Int::ItemRepTest < Nanoc::TestCase
       'blah blah', {}, '/'
     )
     rep = Nanoc::Int::ItemRep.new(item, nil)
-    rep.expects(:compiled?).returns(false)
+    rep.compiled = false
 
     # Check
     assert_raises(Nanoc::Int::Errors::UnmetDependency) do
@@ -83,7 +83,7 @@ class Nanoc::Int::ItemRepTest < Nanoc::TestCase
       'blah blah', {}, '/'
     )
     rep = Nanoc::Int::ItemRep.new(item, nil)
-    rep.expects(:compiled?).returns(false)
+    rep.compiled = false
     rep.snapshot_contents = {
       pre: Nanoc::Int::TextualContent.new('pre!'),
       last: Nanoc::Int::TextualContent.new('last!'),
@@ -101,7 +101,7 @@ class Nanoc::Int::ItemRepTest < Nanoc::TestCase
       'blah blah', {}, '/'
     )
     rep = Nanoc::Int::ItemRep.new(item, nil)
-    rep.expects(:compiled?).returns(false)
+    rep.compiled = false
     rep.snapshot_defs.concat([
       Nanoc::Int::SnapshotDef.new(:pre, true),
     ])
