@@ -73,10 +73,10 @@ describe Nanoc::ItemView do
     let(:rep) do
       Nanoc::Int::ItemRep.new(item, :default).tap do |ir|
         ir.compiled = true
-        ir.snapshot_defs = [
+        ir.snapshot_defs.concat([
           Nanoc::Int::SnapshotDef.new(:last, false),
           Nanoc::Int::SnapshotDef.new(:specific, true),
-        ]
+        ])
         ir.snapshot_contents = {
           last: Nanoc::Int::TextualContent.new('Default Hallo'),
           specific: Nanoc::Int::TextualContent.new('Specific Hallo'),

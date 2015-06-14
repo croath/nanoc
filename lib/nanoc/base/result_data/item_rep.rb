@@ -18,7 +18,7 @@ module Nanoc::Int
     attr_reader :name
 
     # @return [Enumerable<Nanoc::Int:SnapshotDef]
-    attr_accessor :snapshot_defs
+    attr_reader :snapshot_defs
 
     class Contents
       # @return [Hash<Symbol,Nanoc::Int::Content]
